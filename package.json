@@ -1,0 +1,60 @@
+{
+  "name": "ollama-guard",
+  "version": "0.1.0",
+  "description": "A calm, local proxy and dashboard between Claude Code and Ollama Cloud: live usage meter, limit alerts, and graceful fallback to legitimate alternatives.",
+  "keywords": [
+    "ollama",
+    "claude-code",
+    "anthropic",
+    "proxy",
+    "usage",
+    "quota",
+    "dashboard",
+    "cli"
+  ],
+  "license": "MIT",
+  "author": "Trushar Patel",
+  "type": "module",
+  "bin": {
+    "ollama-guard": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "docs",
+    "examples",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "engines": {
+    "node": ">=20.10"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-assets.mjs",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "start": "node dist/cli.js start",
+    "prepublishOnly": "npm run clean && npm run build && npm test"
+  },
+  "dependencies": {
+    "node-notifier": "^10.0.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^22.20.5",
+    "@types/node-notifier": "^8.0.5",
+    "eslint": "^10.14.0",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.1.0"
+  }
+}

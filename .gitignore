@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+*.log
+*.tgz
+.DS_Store
+Thumbs.db
+.env
+.env.*
+.vscode/
+.idea/
+# never commit local guard state
+.ollama-guard/
+secrets.json
