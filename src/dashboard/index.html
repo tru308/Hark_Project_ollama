@@ -1,0 +1,792 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="light dark" />
+<title>Ollama Guard</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230A84FF'/%3E%3Cstop offset='1' stop-color='%235E5CE6'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='8' fill='url(%23g)'/%3E%3Cpath d='M16 7l7 3v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V10z' fill='white' fill-opacity='.95'/%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --bg-elev: rgba(255, 255, 255, 0.72);
+    --card: #ffffff;
+    --card-border: rgba(0, 0, 0, 0.06);
+    --text: #1d1d1f;
+    --text-2: #6e6e73;
+    --text-3: #a1a1a6;
+    --hair: rgba(0, 0, 0, 0.08);
+    --fill: rgba(120, 120, 128, 0.12);
+    --fill-2: rgba(120, 120, 128, 0.2);
+    --blue: #0a84ff;
+    --indigo: #5e5ce6;
+    --green: #30d158;
+    --green-ink: #248a3d;
+    --orange: #ff9f0a;
+    --red: #ff3b30;
+    --purple: #bf5af2;
+    --teal: #40c8e0;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 8px 24px rgba(0, 0, 0, 0.06);
+    --radius: 22px;
+    --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Segoe UI Variable Text', 'Segoe UI', Inter, Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', Menlo, Consolas, monospace;
+  }
+  :root[data-theme='dark'] {
+    --bg: #000000;
+    --bg-elev: rgba(22, 22, 24, 0.72);
+    --card: #1c1c1e;
+    --card-border: rgba(255, 255, 255, 0.06);
+    --text: #f5f5f7;
+    --text-2: #98989d;
+    --text-3: #636366;
+    --hair: rgba(255, 255, 255, 0.1);
+    --fill: rgba(118, 118, 128, 0.24);
+    --fill-2: rgba(118, 118, 128, 0.36);
+    --green-ink: #30d158;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.35);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+      --bg: #000000;
+      --bg-elev: rgba(22, 22, 24, 0.72);
+      --card: #1c1c1e;
+      --card-border: rgba(255, 255, 255, 0.06);
+      --text: #f5f5f7;
+      --text-2: #98989d;
+      --text-3: #636366;
+      --hair: rgba(255, 255, 255, 0.1);
+      --fill: rgba(118, 118, 128, 0.24);
+      --fill-2: rgba(118, 118, 128, 0.36);
+      --green-ink: #30d158;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text); font-family: var(--font);
+    font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+    transition: background 0.4s var(--ease), color 0.4s var(--ease);
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  .tabular { font-variant-numeric: tabular-nums; }
+
+  /* ------------------------------------------------ header */
+  header {
+    position: sticky; top: 0; z-index: 20; background: var(--bg-elev);
+    backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 0.5px solid var(--hair);
+  }
+  .bar { max-width: 1180px; margin: 0 auto; padding: 12px 28px; display: flex; align-items: center; gap: 18px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; font-size: 17px; white-space: nowrap; }
+  .brand svg { width: 28px; height: 28px; border-radius: 7px; box-shadow: 0 2px 8px rgba(10, 132, 255, 0.35); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 9px; border-radius: 999px;
+    background: var(--fill); font-size: 12.5px; font-weight: 500; color: var(--text-2); transition: all 0.3s var(--ease);
+  }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+  .pill.live .dot { background: var(--green); box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.6); animation: pulse 2.4s infinite; }
+  .pill.fallback { color: var(--purple); } .pill.fallback .dot { background: var(--purple); }
+  .pill.warn { color: var(--orange); } .pill.warn .dot { background: var(--orange); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0.55); } 70% { box-shadow: 0 0 0 7px rgba(48, 209, 88, 0); } 100% { box-shadow: 0 0 0 0 rgba(48, 209, 88, 0); } }
+  .spacer { flex: 1; }
+  .seg { position: relative; display: inline-flex; background: var(--fill); border-radius: 10px; padding: 2px; }
+  .seg button {
+    position: relative; z-index: 1; border: 0; background: none; padding: 5px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--text); transition: color 0.2s;
+  }
+  .seg .thumb {
+    position: absolute; z-index: 0; top: 2px; bottom: 2px; border-radius: 8px; background: var(--card);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04); transition: left 0.35s var(--spring), width 0.35s var(--spring);
+  }
+  :root[data-theme='dark'] .seg .thumb { background: #636366; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme='light']) .seg .thumb { background: #636366; } }
+  .icon-btn {
+    border: 0; background: var(--fill); width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; cursor: pointer;
+    transition: transform 0.2s var(--ease), background 0.2s;
+  }
+  .icon-btn:hover { background: var(--fill-2); } .icon-btn:active { transform: scale(0.92); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* ------------------------------------------------ layout */
+  main { max-width: 1180px; margin: 0 auto; padding: 34px 28px 80px; }
+  .view { display: none; animation: fadeUp 0.5s var(--ease); }
+  .view.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  h1 { font-size: 34px; letter-spacing: -0.025em; font-weight: 700; margin: 0 0 4px; }
+  .subtitle { color: var(--text-2); margin: 0 0 26px; font-size: 15px; }
+  h2 { font-size: 19px; letter-spacing: -0.015em; font-weight: 600; margin: 0; }
+  .grid { display: grid; gap: 18px; }
+  .g-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .g-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  @media (max-width: 960px) { .g-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 680px) { .g-4, .g-2 { grid-template-columns: 1fr; } .bar { padding: 10px 16px; } main { padding: 24px 16px 60px; } .brand span { display: none; } }
+  .card {
+    background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); border: 0.5px solid var(--card-border);
+    padding: 22px 24px; transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease), background 0.4s var(--ease);
+  }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .muted { color: var(--text-2); } .faint { color: var(--text-3); }
+  .small { font-size: 13px; }
+
+  /* ------------------------------------------------ hero rings */
+  .hero { display: flex; flex-wrap: wrap; align-items: center; gap: 28px 40px; padding: 30px 32px; }
+  .rings { display: flex; flex-wrap: wrap; gap: 34px; flex: 1; justify-content: flex-start; }
+  .ring { display: flex; flex-direction: column; align-items: center; gap: 12px; min-width: 150px; }
+  .ring svg { width: 150px; height: 150px; transform: rotate(-90deg); overflow: visible; }
+  .ring .track { stroke: var(--fill); }
+  .ring .prog { transition: stroke-dashoffset 1.2s var(--ease), stroke 0.6s; filter: drop-shadow(0 0 6px rgba(10, 132, 255, 0.0)); }
+  .ring-wrap { position: relative; }
+  .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .ring-center .val { font-size: 34px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; }
+  .ring-center .val small { font-size: 17px; font-weight: 600; margin-left: 1px; color: var(--text-2); }
+  .ring-center .lbl { font-size: 12px; color: var(--text-2); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+  .reset { font-size: 13px; color: var(--text-2); text-align: center; }
+  .reset b { color: var(--text); font-weight: 600; }
+  .hero-side { min-width: 230px; max-width: 320px; display: flex; flex-direction: column; gap: 14px; }
+  .kv { display: flex; justify-content: space-between; gap: 16px; font-size: 14px; padding-bottom: 12px; border-bottom: 0.5px solid var(--hair); }
+  .kv:last-child { border-bottom: 0; padding-bottom: 0; }
+  .kv span:first-child { color: var(--text-2); }
+  .kv span:last-child { font-weight: 500; text-align: right; }
+  .empty { text-align: center; padding: 26px 10px; color: var(--text-2); flex: 1; }
+  .empty .big { font-size: 40px; margin-bottom: 6px; }
+
+  /* ------------------------------------------------ tiles */
+  .tile .label { font-size: 13px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 7px; }
+  .tile .value { font-size: 30px; font-weight: 700; letter-spacing: -0.025em; margin-top: 8px; line-height: 1.1; }
+  .tile .hint { font-size: 12.5px; color: var(--text-3); margin-top: 4px; min-height: 18px; }
+  .tile .glyph { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: white; font-size: 12px; }
+  .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--fill); color: var(--text-2); }
+  .badge.cloud { background: rgba(10, 132, 255, 0.12); color: var(--blue); }
+  .badge.fb { background: rgba(191, 90, 242, 0.14); color: var(--purple); }
+  .badge.ok { background: rgba(48, 209, 88, 0.14); color: var(--green-ink); }
+  .badge.err { background: rgba(255, 59, 48, 0.12); color: var(--red); }
+  .badge.dg { background: rgba(64, 200, 224, 0.15); color: #0a9bb5; }
+
+  /* ------------------------------------------------ chart */
+  .chart { position: relative; height: 230px; }
+  .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .chart .b-in { fill: var(--blue); } .chart .b-out { fill: var(--indigo); opacity: 0.55; }
+  .chart rect.bar-r { transition: y 0.8s var(--ease), height 0.8s var(--ease), opacity 0.2s; }
+  .chart .axis { fill: var(--text-3); font-size: 11px; }
+  .chart .grid-l { stroke: var(--hair); stroke-dasharray: 2 4; }
+  .chart .cost { fill: none; stroke: var(--orange); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--text-2); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  .tip {
+    position: absolute; pointer-events: none; background: var(--bg-elev); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+    border: 0.5px solid var(--hair); border-radius: 12px; padding: 9px 12px; font-size: 12.5px; box-shadow: var(--shadow);
+    opacity: 0; transform: translateY(4px); transition: opacity 0.15s, transform 0.15s; white-space: nowrap; z-index: 5;
+  }
+  .tip.show { opacity: 1; transform: none; }
+
+  /* ------------------------------------------------ lists */
+  .rows { display: flex; flex-direction: column; gap: 14px; }
+  .row-top { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; gap: 10px; }
+  .row-top span:first-child { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meter { height: 6px; border-radius: 99px; background: var(--fill); overflow: hidden; }
+  .meter > i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--blue), var(--indigo)); width: 0; transition: width 1s var(--ease); }
+  .alerts-list { display: flex; flex-direction: column; }
+  .alert-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 0.5px solid var(--hair); }
+  .alert-item:last-child { border-bottom: 0; }
+  .alert-item .ic { width: 8px; height: 8px; border-radius: 50%; margin-top: 7px; flex: none; }
+  .alert-item .t { font-weight: 600; font-size: 14px; } .alert-item .m { font-size: 13px; color: var(--text-2); }
+
+  /* ------------------------------------------------ table */
+  .toolbar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+  .search {
+    flex: 1; min-width: 200px; border: 0; background: var(--fill); border-radius: 10px; padding: 8px 12px 8px 34px; outline: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238e8e93' stroke-width='2.4' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: 11px center; transition: box-shadow 0.2s;
+  }
+  .search:focus { box-shadow: 0 0 0 3.5px rgba(10, 132, 255, 0.35); }
+  .table-wrap { overflow-x: auto; margin: 0 -24px; padding: 0 24px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th { text-align: left; font-weight: 600; color: var(--text-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 0.5px solid var(--hair); white-space: nowrap; }
+  td { padding: 11px 10px; border-bottom: 0.5px solid var(--hair); white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  tbody tr { transition: background 0.2s; }
+  tbody tr:hover { background: var(--fill); }
+  tr.enter { animation: rowIn 0.7s var(--ease); }
+  @keyframes rowIn { from { background: rgba(10, 132, 255, 0.14); opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+  .mono { font-family: var(--mono); font-size: 12.5px; }
+
+  /* ------------------------------------------------ settings */
+  .form-section { margin-bottom: 18px; }
+  .form-section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-2); font-weight: 600; margin: 0 0 8px 6px; }
+  .group { background: var(--card); border-radius: 14px; border: 0.5px solid var(--card-border); box-shadow: var(--shadow); overflow: hidden; }
+  .field { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 18px; border-bottom: 0.5px solid var(--hair); min-height: 52px; }
+  .field:last-child { border-bottom: 0; }
+  .field label { font-weight: 500; } .field .desc { font-size: 12.5px; color: var(--text-2); font-weight: 400; margin-top: 2px; }
+  .field input[type='text'], .field input[type='number'], .field input[type='password'], .field select {
+    border: 0; background: var(--fill); border-radius: 9px; padding: 7px 11px; min-width: 220px; outline: none; text-align: right; transition: box-shadow 0.2s;
+  }
+  .field input:focus, .field select:focus, textarea:focus { box-shadow: 0 0 0 3.5px rgba(10, 132, 255, 0.35); }
+  .switch { position: relative; width: 51px; height: 31px; flex: none; }
+  .switch input { opacity: 0; width: 0; height: 0; position: absolute; }
+  .switch span { position: absolute; inset: 0; background: var(--fill-2); border-radius: 99px; transition: background 0.3s var(--ease); cursor: pointer; }
+  .switch span::after {
+    content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: white;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15), 0 3px 1px rgba(0, 0, 0, 0.06); transition: transform 0.35s var(--spring);
+  }
+  .switch input:checked + span { background: var(--green); }
+  .switch input:checked + span::after { transform: translateX(20px); }
+  input[type='range'] { accent-color: var(--blue); width: 200px; }
+  textarea {
+    width: 100%; min-height: 280px; border: 0; background: var(--fill); border-radius: 12px; padding: 14px; font-family: var(--mono); font-size: 12.5px;
+    line-height: 1.55; outline: none; resize: vertical;
+  }
+  .btn {
+    border: 0; border-radius: 980px; padding: 8px 18px; font-weight: 500; font-size: 14px; cursor: pointer; background: var(--fill); color: var(--text);
+    transition: transform 0.15s var(--ease), background 0.2s, opacity 0.2s;
+  }
+  .btn:hover { background: var(--fill-2); } .btn:active { transform: scale(0.96); }
+  .btn.primary { background: var(--blue); color: white; } .btn.primary:hover { background: #0077ed; }
+  .btn.fb { background: rgba(191, 90, 242, 0.14); color: var(--purple); }
+  .btn[disabled] { opacity: 0.5; pointer-events: none; }
+  .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .note { font-size: 12.5px; color: var(--text-2); margin: 8px 6px 0; }
+  .callout { display: flex; gap: 12px; align-items: flex-start; padding: 14px 18px; border-radius: 14px; background: rgba(10, 132, 255, 0.08); color: var(--text); font-size: 13.5px; margin-bottom: 18px; }
+  .callout.warn { background: rgba(255, 159, 10, 0.12); }
+
+  /* ------------------------------------------------ toast */
+  .toasts { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .toast {
+    background: var(--bg-elev); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 0.5px solid var(--hair); box-shadow: var(--shadow); padding: 11px 18px; border-radius: 14px; font-size: 14px; font-weight: 500;
+    animation: toastIn 0.45s var(--spring);
+  }
+  .toast.out { animation: toastOut 0.3s var(--ease) forwards; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(16px) scale(0.96); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(8px) scale(0.98); } }
+  footer { text-align: center; color: var(--text-3); font-size: 12px; padding: 10px 0 30px; }
+  footer a { color: inherit; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0A84FF"/><stop offset="1" stop-color="#5E5CE6"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#lg)"/><path d="M16 7l7 3v5.5c0 4.6-3 8.3-7 9.5-4-1.2-7-4.9-7-9.5V10z" fill="#fff" fill-opacity=".95"/><path d="M12.8 16.2l2.3 2.3 4.3-4.6" stroke="#0A84FF" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Ollama Guard</span>
+    </div>
+    <div class="pill" id="pill"><i class="dot"></i><span id="pill-text">Connecting…</span></div>
+    <div class="spacer"></div>
+    <nav class="seg" id="nav" role="tablist">
+      <div class="thumb" id="thumb"></div>
+      <button data-view="overview" role="tab">Overview</button>
+      <button data-view="activity" role="tab">Activity</button>
+      <button data-view="settings" role="tab">Settings</button>
+    </nav>
+    <button class="icon-btn" id="theme" title="Appearance" aria-label="Toggle appearance"></button>
+  </div>
+</header>
+
+<main>
+  <!-- ======================================================= OVERVIEW -->
+  <section class="view" id="view-overview">
+    <h1 id="greeting">Usage</h1>
+    <p class="subtitle" id="sub">Your Ollama Cloud allowance, live.</p>
+
+    <div class="card hero" id="hero">
+      <div class="rings" id="rings"><div class="empty"><div class="big">◌</div>Loading usage…</div></div>
+      <div class="hero-side" id="hero-side"></div>
+    </div>
+
+    <div class="grid g-4" style="margin-top: 18px">
+      <div class="card tile"><div class="label"><span class="glyph" style="background: var(--blue)">↑</span>Requests today</div><div class="value tabular" id="t-req">–</div><div class="hint" id="t-req-h"></div></div>
+      <div class="card tile"><div class="label"><span class="glyph" style="background: var(--indigo)">◆</span>Tokens today</div><div class="value tabular" id="t-tok">–</div><div class="hint" id="t-tok-h"></div></div>
+      <div class="card tile"><div class="label"><span class="glyph" style="background: var(--orange)">$</span>Est. cost today</div><div class="value tabular" id="t-cost">–</div><div class="hint" id="t-cost-h"></div></div>
+      <div class="card tile"><div class="label"><span class="glyph" style="background: var(--purple)">⇄</span>Fallback</div><div class="value" id="t-fb">–</div><div class="hint" id="t-fb-h"></div></div>
+    </div>
+
+    <div class="card" style="margin-top: 18px">
+      <div class="card-head">
+        <h2>Last 14 days</h2>
+        <div class="legend"><span><i style="background: var(--blue)"></i>Input</span><span><i style="background: var(--indigo); opacity: 0.55"></i>Output</span><span><i style="background: var(--orange)"></i>Cost</span></div>
+      </div>
+      <div class="chart" id="chart"><div class="tip" id="tip"></div></div>
+    </div>
+
+    <div class="grid g-2" style="margin-top: 18px">
+      <div class="card"><div class="card-head"><h2>Projects</h2><span class="small faint">by tokens · 14 days</span></div><div class="rows" id="projects"></div></div>
+      <div class="card"><div class="card-head"><h2>Models</h2><span class="small faint">by tokens · 14 days</span></div><div class="rows" id="models"></div></div>
+    </div>
+
+    <div class="card" style="margin-top: 18px">
+      <div class="card-head"><h2>Recent alerts</h2><button class="btn" id="btn-test-2">Send test alert</button></div>
+      <div class="alerts-list" id="alerts"></div>
+    </div>
+  </section>
+
+  <!-- ======================================================= ACTIVITY -->
+  <section class="view" id="view-activity">
+    <h1>Activity</h1>
+    <p class="subtitle">Every request Claude Code sends through the guard. Prompts and responses are never stored.</p>
+    <div class="card">
+      <div class="toolbar">
+        <input class="search" id="filter" placeholder="Filter by model, project, provider or status" />
+        <span class="small muted" id="log-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Status</th><th>Provider</th><th>Model</th><th>Project</th><th class="num">In</th><th class="num">Out</th><th class="num">Cost</th><th class="num">Latency</th></tr></thead>
+          <tbody id="log-body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="log-empty" style="display: none"><div class="big">☕︎</div>No requests yet. Start <span class="mono">claude</span> with the guard's env vars.</div>
+    </div>
+  </section>
+
+  <!-- ======================================================= SETTINGS -->
+  <section class="view" id="view-settings">
+    <h1>Settings</h1>
+    <p class="subtitle">Changes apply instantly, no restart needed (except port and host).</p>
+    <div class="callout"><span>🛡️</span><div><b>One account, by design.</b> Ollama Guard uses a single Ollama API key and never rotates accounts. Fallback only goes to things you run or pay for yourself: local models, Ollama extra usage, or another provider with your own key.</div></div>
+
+    <div class="form-section">
+      <h3>Ollama account</h3>
+      <div class="group">
+        <div class="field"><div><label>API key</label><div class="desc" id="key-mask">–</div></div><input type="password" id="s-ollamaApiKey" placeholder="Paste to replace" autocomplete="off" /></div>
+        <div class="field"><div><label>Usage shown</label><div class="desc">Team scope needs a team admin key.</div></div>
+          <select id="c-usageScope"><option value="self">My usage</option><option value="team">Whole team</option></select></div>
+        <div class="field"><div><label>Account label</label></div><input type="text" id="c-accountLabel" /></div>
+        <div class="field"><div><label>Refresh every</label><div class="desc">Seconds. Ollama recommends 60.</div></div><input type="number" id="c-pollIntervalSec" min="15" step="5" /></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Alerts</h3>
+      <div class="group">
+        <div class="field"><div><label>Thresholds</label><div class="desc">Percentages, comma separated.</div></div><input type="text" id="c-thresholds" /></div>
+        <div class="field"><label>Alert when a limit resets</label><label class="switch"><input type="checkbox" id="c-onReset" /><span></span></label></div>
+        <div class="field"><label>Alert when fallback kicks in</label><label class="switch"><input type="checkbox" id="c-onFallback" /><span></span></label></div>
+        <div class="field"><label>Desktop notifications</label><label class="switch"><input type="checkbox" id="c-desktop" /><span></span></label></div>
+        <div class="field"><div><label>Telegram</label><div class="desc" id="tg-mask">Bot token from @BotFather</div></div><label class="switch"><input type="checkbox" id="c-telegram" /><span></span></label></div>
+        <div class="field"><div><label>Telegram bot token</label></div><input type="password" id="s-telegramBotToken" placeholder="Paste to replace" autocomplete="off" /></div>
+        <div class="field"><div><label>Telegram chat id</label></div><input type="text" id="c-chatId" /></div>
+        <div class="field"><div><label>Discord</label><div class="desc" id="dc-mask">Channel webhook</div></div><label class="switch"><input type="checkbox" id="c-discord" /><span></span></label></div>
+        <div class="field"><div><label>Discord webhook URL</label></div><input type="password" id="s-discordWebhookUrl" placeholder="Paste to replace" autocomplete="off" /></div>
+      </div>
+    </div>
+
+    <div class="form-section">
+      <h3>Fallback & downgrade</h3>
+      <div class="group">
+        <div class="field"><div><label>Fallback</label><div class="desc" id="fb-desc">Edit the chain in Advanced below.</div></div><label class="switch"><input type="checkbox" id="c-fbEnabled" /><span></span></label></div>
+        <div class="field"><div><label>Also fail over when Ollama is unreachable</label></div><label class="switch"><input type="checkbox" id="c-onNetworkError" /><span></span></label></div>
+        <div class="field"><div><label>Pre-emptive downgrade</label><div class="desc" id="dg-desc">Use a cheaper model near the limit.</div></div><label class="switch"><input type="checkbox" id="c-dgEnabled" /><span></span></label></div>
+        <div class="field"><div><label>Downgrade at</label></div><div style="display: flex; align-items: center; gap: 12px"><input type="range" id="c-dgThreshold" min="50" max="100" step="1" /><span class="tabular" id="dg-val" style="width: 40px; text-align: right"></span></div></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="btn-refresh">Refresh usage</button>
+      <button class="btn" id="btn-test">Send test alert</button>
+      <button class="btn primary" id="btn-save">Save changes</button>
+    </div>
+
+    <div class="form-section" style="margin-top: 30px">
+      <h3>Advanced · config.json</h3>
+      <textarea id="raw" spellcheck="false"></textarea>
+      <p class="note">Full configuration, including <span class="mono">models.map</span>, <span class="mono">fallback.chain</span> and <span class="mono">pricing</span>. Secrets are never shown here. Fallback provider keys go in <span class="mono">~/.ollama-guard/secrets.json</span> under <span class="mono">providers</span>, or set <span class="mono">apiKeyEnv</span>.</p>
+      <div class="actions"><button class="btn primary" id="btn-raw">Save JSON</button></div>
+    </div>
+  </section>
+  <footer>Ollama Guard <span id="ver"></span> · runs only on this computer · <a href="https://docs.ollama.com/api/cloud-usage" target="_blank" rel="noreferrer">Ollama usage API</a></footer>
+</main>
+<div class="toasts" id="toasts"></div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+  const fmtTok = (n) => (n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M' : n >= 1e3 ? (n / 1e3).toFixed(n >= 1e4 ? 0 : 1) + 'k' : String(Math.round(n || 0)));
+  const fmtUsd = (n) => (!n ? '$0.00' : n < 0.01 ? '$' + n.toFixed(4) : '$' + n.toFixed(2));
+  const dur = (ms) => {
+    if (!isFinite(ms) || ms <= 0) return 'now';
+    const s = Math.floor(ms / 1000), d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d) return d + 'd ' + h + 'h';
+    if (h) return h + 'h ' + m + 'm';
+    if (m) return m + 'm ' + (s % 60) + 's';
+    return (s % 60) + 's';
+  };
+  const api = async (path, opts = {}) => {
+    const res = await fetch('/api/guard/' + path, { ...opts, headers: { 'content-type': 'application/json', 'x-ollama-guard': '1', ...(opts.headers || {}) } });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw Object.assign(new Error(body.error || res.statusText), { body });
+    return body;
+  };
+  const toast = (msg) => {
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    $('toasts').appendChild(el);
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, 2600);
+  };
+
+  // ---------------------------------------------------- theme
+  const THEMES = ['auto', 'light', 'dark'];
+  const ICONS = {
+    auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></svg>',
+    light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+    dark: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>',
+  };
+  let theme = localStorage.getItem('og-theme') || 'auto';
+  const applyTheme = () => {
+    if (theme === 'auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme', theme);
+    $('theme').innerHTML = ICONS[theme];
+    $('theme').title = 'Appearance: ' + theme;
+  };
+  $('theme').onclick = () => { theme = THEMES[(THEMES.indexOf(theme) + 1) % 3]; localStorage.setItem('og-theme', theme); applyTheme(); };
+  applyTheme();
+
+  // ---------------------------------------------------- navigation
+  const navButtons = [...document.querySelectorAll('#nav button')];
+  const show = (view) => {
+    navButtons.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.view === view)));
+    document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === 'view-' + view));
+    const btn = navButtons.find((b) => b.dataset.view === view) || navButtons[0];
+    $('thumb').style.left = btn.offsetLeft + 'px';
+    $('thumb').style.width = btn.offsetWidth + 'px';
+    if (location.hash !== '#' + view) history.replaceState(null, '', '#' + view);
+    if (view === 'settings') loadConfig();
+  };
+  navButtons.forEach((b) => (b.onclick = () => show(b.dataset.view)));
+  window.addEventListener('resize', () => show((location.hash || '#overview').slice(1)));
+
+  // ---------------------------------------------------- state
+  let status = null, stats = null, logs = [], configDoc = null;
+
+  // ---------------------------------------------------- rings
+  const R = 62, C = 2 * Math.PI * R;
+  const ringColor = (u) => (u >= 0.9 ? ['#ff453a', '#ff375f'] : u >= 0.7 ? ['#ff9f0a', '#ffd60a'] : ['#0a84ff', '#5e5ce6']);
+  function renderRings() {
+    const u = status && status.usage;
+    const el = $('rings');
+    if (!u || !u.windows || !u.windows.length) {
+      const msg = !status ? 'Connecting to Ollama Guard…' : !status.account.keyConfigured ? 'Add your Ollama API key to see usage. Run <span class="mono">ollama-guard init</span>.' : u && u.error ? esc(u.error) : 'Waiting for the first usage reading…';
+      el.innerHTML = '<div class="empty"><div class="big">◌</div>' + msg + '</div>';
+      return;
+    }
+    const existing = new Set([...el.querySelectorAll('.ring')].map((r) => r.dataset.id));
+    const wanted = u.windows.map((w) => w.id);
+    if (wanted.length !== existing.size || wanted.some((id) => !existing.has(id))) {
+      el.innerHTML = u.windows.map((w) => `
+        <div class="ring" data-id="${esc(w.id)}">
+          <div class="ring-wrap">
+            <svg viewBox="0 0 150 150"><defs><linearGradient id="rg-${esc(w.id)}" x1="0" y1="0" x2="1" y2="1"><stop offset="0"/><stop offset="1"/></linearGradient></defs>
+              <circle class="track" cx="75" cy="75" r="${R}" fill="none" stroke-width="14"/>
+              <circle class="prog" cx="75" cy="75" r="${R}" fill="none" stroke-width="14" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C}" stroke="url(#rg-${esc(w.id)})"/>
+            </svg>
+            <div class="ring-center"><div class="val tabular"><span class="n">0</span><small>%</small></div><div class="lbl">${esc(w.label)}</div></div>
+          </div>
+          <div class="reset" data-reset></div>
+        </div>`).join('');
+    }
+    for (const w of u.windows) {
+      const node = el.querySelector(`.ring[data-id="${CSS.escape(w.id)}"]`);
+      if (!node) continue;
+      const used = Math.max(0, Math.min(1, w.used));
+      const [a, b] = ringColor(used);
+      const stops = node.querySelectorAll('stop');
+      stops[0].setAttribute('stop-color', a); stops[1].setAttribute('stop-color', b);
+      requestAnimationFrame(() => node.querySelector('.prog').setAttribute('stroke-dashoffset', String(C * (1 - used))));
+      animateNumber(node.querySelector('.n'), Math.round(w.used * 100));
+      node.dataset.resetsAt = w.resetsAt || '';
+    }
+    tickResets();
+  }
+  function animateNumber(el, to) {
+    const from = Number(el.textContent) || 0;
+    if (from === to) return;
+    const start = performance.now(), d = 900;
+    const step = (t) => {
+      const p = Math.min(1, (t - start) / d), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(from + (to - from) * e));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+  function tickResets() {
+    document.querySelectorAll('.ring').forEach((n) => {
+      const r = n.dataset.resetsAt, el = n.querySelector('[data-reset]');
+      if (!el) return;
+      el.innerHTML = r ? 'Resets in <b class="tabular">' + dur(Date.parse(r) - Date.now()) + '</b>' : '<span class="faint">No reset time</span>';
+    });
+    if (status && status.fallback.active && status.fallback.until) {
+      const h = $('t-fb-h');
+      if (h) h.textContent = 'Retry Ollama in ' + dur(Date.parse(status.fallback.until) - Date.now());
+    }
+  }
+  setInterval(tickResets, 1000);
+
+  function renderHeroSide() {
+    if (!status) return;
+    const u = status.usage || {};
+    const rows = [];
+    rows.push(['Account', esc(status.account.label) + (status.account.scope === 'team' ? ' · team' : '')]);
+    if (u.includedBalanceUsd != null && u.allowanceUsd) rows.push(['Included credits', fmtUsd(u.includedBalanceUsd) + ' <span class="faint">of ' + fmtUsd(u.allowanceUsd) + '</span>']);
+    if (u.purchasedUsd != null) rows.push(['Extra credits', fmtUsd(u.purchasedUsd)]);
+    if (u.range) rows.push(['Ollama, last ' + esc(u.range.range), u.range.requests + ' req · ' + fmtUsd(u.range.usd)]);
+    rows.push(['Updated', u.fetchedAt ? new Date(u.fetchedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (u.error ? ' <span style="color: var(--orange)">⚠︎</span>' : '') : '–']);
+    $('hero-side').innerHTML = rows.map(([k, v]) => `<div class="kv"><span>${k}</span><span class="tabular">${v}</span></div>`).join('') +
+      (u.error && u.windows && u.windows.length ? `<div class="small" style="color: var(--orange)">${esc(u.error)}</div>` : '');
+  }
+
+  function renderPill() {
+    const pill = $('pill'), text = $('pill-text');
+    pill.className = 'pill';
+    if (!status) { text.textContent = 'Offline'; return; }
+    if (status.fallback.active) { pill.classList.add('fallback'); text.textContent = 'Fallback · ' + (status.fallback.provider || status.fallback.chain[0]?.name || 'on'); return; }
+    const h = status.usage && status.usage.headline;
+    if (!status.account.keyConfigured) { pill.classList.add('warn'); text.textContent = 'Needs API key'; return; }
+    if (h && h.used >= 0.9) { pill.classList.add('warn'); text.textContent = Math.round(h.used * 100) + '% used'; return; }
+    pill.classList.add('live'); text.textContent = 'Live';
+  }
+
+  function renderGreeting() {
+    const hr = new Date().getHours();
+    $('greeting').textContent = hr < 5 ? 'Late night coding' : hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+    const h = status && status.usage && status.usage.headline;
+    $('sub').textContent = !h ? 'Your Ollama Cloud allowance, live.' : h.used >= 1 ? 'You have reached your ' + h.label.toLowerCase() + ' limit.' + (status.fallback.active ? ' Fallback is covering you.' : '') : h.used >= 0.9 ? 'Getting close. Time to wrap up the big tasks.' : h.used >= 0.7 ? 'Plenty left, but worth keeping an eye on.' : 'Plenty of room. Build something great.';
+  }
+
+  function renderTiles() {
+    if (!stats) return;
+    const today = stats.days[stats.days.length - 1] || {};
+    const yday = stats.days[stats.days.length - 2] || {};
+    $('t-req').textContent = today.requests ?? 0;
+    $('t-req-h').textContent = yday.requests != null ? yday.requests + ' yesterday' : '';
+    $('t-tok').textContent = fmtTok((today.inputTokens || 0) + (today.outputTokens || 0));
+    $('t-tok-h').textContent = fmtTok(today.inputTokens || 0) + ' in · ' + fmtTok(today.outputTokens || 0) + ' out';
+    $('t-cost').textContent = fmtUsd(today.costUsd || 0);
+    $('t-cost-h').textContent = fmtUsd(stats.totals.costUsd) + ' over 14 days';
+    if (status) {
+      const fb = status.fallback;
+      $('t-fb').innerHTML = fb.active ? '<span style="color: var(--purple)">Active</span>' : fb.enabled && fb.chain.length ? 'Ready' : '<span class="faint">Off</span>';
+      if (!fb.active) $('t-fb-h').textContent = fb.enabled && fb.chain.length ? fb.chain.map((p) => p.name).join(' → ') : 'Enable it in Settings';
+      if (status.downgrade.active) $('t-fb-h').textContent = 'Downgraded: ' + (status.downgrade.example || 'cheaper model');
+      const tile = $('t-fb').parentElement;
+      let btn = tile.querySelector('button');
+      if (fb.active && !btn) {
+        btn = document.createElement('button');
+        btn.className = 'btn fb'; btn.style.marginTop = '10px'; btn.textContent = 'Try Ollama now';
+        btn.onclick = async () => { await api('fallback/reset', { method: 'POST' }); toast('Back on Ollama Cloud'); };
+        tile.appendChild(btn);
+      } else if (!fb.active && btn) btn.remove();
+    }
+  }
+
+  // ---------------------------------------------------- chart
+  function renderChart() {
+    if (!stats) return;
+    const host = $('chart');
+    const W = host.clientWidth || 800, H = 230, padL = 44, padB = 26, padT = 10, padR = 44;
+    const days = stats.days;
+    const maxTok = Math.max(1, ...days.map((d) => d.inputTokens + d.outputTokens));
+    const maxCost = Math.max(...days.map((d) => d.costUsd), 0);
+    const nice = (v) => { const p = Math.pow(10, Math.floor(Math.log10(v))); return Math.ceil(v / p) * p; };
+    const top = nice(maxTok);
+    const iw = W - padL - padR, ih = H - padT - padB, bw = Math.min(34, (iw / days.length) * 0.62);
+    const x = (i) => padL + (iw / days.length) * (i + 0.5);
+    const y = (v) => padT + ih - (v / top) * ih;
+    let svg = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">`;
+    for (let g = 0; g <= 4; g++) {
+      const v = (top / 4) * g, yy = y(v);
+      svg += `<line class="grid-l" x1="${padL}" x2="${W - padR}" y1="${yy}" y2="${yy}"/><text class="axis" x="${padL - 8}" y="${yy + 4}" text-anchor="end">${fmtTok(v)}</text>`;
+    }
+    days.forEach((d, i) => {
+      const inH = (d.inputTokens / top) * ih, outH = (d.outputTokens / top) * ih;
+      const bx = x(i) - bw / 2;
+      svg += `<rect class="bar-r b-in" x="${bx}" y="${padT + ih - inH}" width="${bw}" height="${Math.max(0, inH)}" rx="${Math.min(6, bw / 3)}"/>`;
+      svg += `<rect class="bar-r b-out" x="${bx}" y="${padT + ih - inH - outH}" width="${bw}" height="${Math.max(0, outH)}" rx="${Math.min(6, bw / 3)}"/>`;
+      const label = new Date(d.date + 'T12:00:00').toLocaleDateString([], { day: 'numeric', month: 'short' });
+      if (days.length <= 14 || i % 2 === 0) svg += `<text class="axis" x="${x(i)}" y="${H - 6}" text-anchor="middle">${i === days.length - 1 ? 'Today' : label}</text>`;
+      svg += `<rect x="${x(i) - iw / days.length / 2}" y="${padT}" width="${iw / days.length}" height="${ih}" fill="transparent" data-i="${i}"/>`;
+    });
+    if (maxCost > 0) {
+      const cy = (v) => padT + ih - (v / (maxCost * 1.1)) * ih;
+      svg += `<path class="cost" d="${days.map((d, i) => (i ? 'L' : 'M') + x(i) + ' ' + cy(d.costUsd)).join(' ')}"/>`;
+      svg += `<text class="axis" x="${W - padR + 8}" y="${cy(maxCost) + 4}">${fmtUsd(maxCost)}</text>`;
+    }
+    svg += '</svg>';
+    const tip = $('tip');
+    host.innerHTML = svg;
+    host.appendChild(tip);
+    host.querySelectorAll('rect[data-i]').forEach((r) => {
+      r.addEventListener('mouseenter', () => {
+        const d = days[Number(r.dataset.i)];
+        tip.innerHTML = `<b>${new Date(d.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}</b><br>${d.requests} requests · ${fmtTok(d.inputTokens)} in · ${fmtTok(d.outputTokens)} out<br>${fmtUsd(d.costUsd)}${d.fallbacks ? ' · <span style="color: var(--purple)">' + d.fallbacks + ' via fallback</span>' : ''}`;
+        const bx = (x(Number(r.dataset.i)) / W) * host.clientWidth;
+        tip.style.left = Math.min(host.clientWidth - 220, Math.max(0, bx - 100)) + 'px';
+        tip.style.top = '0px';
+        tip.classList.add('show');
+      });
+      r.addEventListener('mouseleave', () => tip.classList.remove('show'));
+    });
+  }
+
+  function renderGroups(id, list) {
+    const el = $(id);
+    if (!list || !list.length) { el.innerHTML = '<div class="empty small">Nothing yet.</div>'; return; }
+    const max = Math.max(...list.map((g) => g.inputTokens + g.outputTokens), 1);
+    el.innerHTML = list.slice(0, 6).map((g) => `
+      <div><div class="row-top"><span title="${esc(g.key)}">${esc(g.key)}</span><span class="muted small tabular">${fmtTok(g.inputTokens + g.outputTokens)} · ${g.requests} req${g.costUsd ? ' · ' + fmtUsd(g.costUsd) : ''}</span></div>
+      <div class="meter"><i data-w="${((g.inputTokens + g.outputTokens) / max) * 100}"></i></div></div>`).join('');
+    requestAnimationFrame(() => el.querySelectorAll('.meter > i').forEach((i) => (i.style.width = Math.max(2, Number(i.dataset.w)) + '%')));
+  }
+
+  function renderAlerts() {
+    const el = $('alerts');
+    const list = (status && status.alerts) || [];
+    if (!list.length) { el.innerHTML = '<div class="empty small">No alerts yet. You will be told at ' + ((configDoc && configDoc.config.alerts.thresholds.join('%, ')) || '70%, 90%, 100') + '% and when limits reset.</div>'; return; }
+    const color = { info: 'var(--green)', warning: 'var(--orange)', critical: 'var(--red)' };
+    el.innerHTML = list.map((a) => `<div class="alert-item"><i class="ic" style="background:${color[a.level]}"></i><div><div class="t">${esc(a.title)} <span class="faint small" style="font-weight: 400">· ${new Date(a.at).toLocaleString([], { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</span></div><div class="m">${esc(a.message)}</div></div></div>`).join('');
+  }
+
+  // ---------------------------------------------------- logs
+  function logRow(e, fresh) {
+    const t = new Date(e.ts);
+    const prov = e.provider === 'ollama-cloud' ? '<span class="badge cloud">Cloud</span>' : '<span class="badge fb">' + esc(e.provider) + '</span>';
+    const st = e.status < 400 ? '<span class="badge ok">' + e.status + '</span>' : '<span class="badge err" title="' + esc(e.error) + '">' + e.status + '</span>';
+    const dg = e.downgraded ? ' <span class="badge dg">↓</span>' : '';
+    return `<tr class="${fresh ? 'enter' : ''}" data-q="${esc([e.model, e.requestedModel, e.project, e.provider, e.status].join(' ').toLowerCase())}">
+      <td class="tabular muted">${t.toLocaleTimeString([], { hour12: false })}</td><td>${st}</td><td>${prov}</td>
+      <td class="mono" title="requested: ${esc(e.requestedModel)}">${esc(e.model || e.requestedModel || '–')}${dg}</td><td>${esc(e.project)}</td>
+      <td class="num">${fmtTok(e.inputTokens)}</td><td class="num">${fmtTok(e.outputTokens)}</td><td class="num">${e.costUsd ? fmtUsd(e.costUsd) : '<span class="faint">–</span>'}</td>
+      <td class="num muted">${(e.latencyMs / 1000).toFixed(1)}s</td></tr>`;
+  }
+  function renderLogs() {
+    $('log-body').innerHTML = logs.map((e) => logRow(e, false)).join('');
+    $('log-empty').style.display = logs.length ? 'none' : 'block';
+    applyFilter();
+  }
+  function applyFilter() {
+    const q = $('filter').value.trim().toLowerCase();
+    let n = 0;
+    $('log-body').querySelectorAll('tr').forEach((tr) => { const ok = !q || tr.dataset.q.includes(q); tr.style.display = ok ? '' : 'none'; if (ok) n++; });
+    $('log-count').textContent = n + (n === 1 ? ' request' : ' requests');
+  }
+  $('filter').addEventListener('input', applyFilter);
+
+  // ---------------------------------------------------- settings
+  async function loadConfig() {
+    try { configDoc = await api('config'); } catch { return; }
+    const c = configDoc.config, s = configDoc.secrets;
+    $('key-mask').textContent = 'Saved: ' + s.ollamaApiKey;
+    $('c-usageScope').value = c.ollama.usageScope;
+    $('c-accountLabel').value = c.ollama.accountLabel;
+    $('c-pollIntervalSec').value = c.ollama.pollIntervalSec;
+    $('c-thresholds').value = c.alerts.thresholds.join(', ');
+    $('c-onReset').checked = c.alerts.onReset;
+    $('c-onFallback').checked = c.alerts.onFallback;
+    $('c-desktop').checked = c.alerts.desktop;
+    $('c-telegram').checked = c.alerts.telegram.enabled;
+    $('c-chatId').value = c.alerts.telegram.chatId || '';
+    $('tg-mask').textContent = s.telegramBotToken ? 'Token saved: ' + s.telegramBotToken : 'Bot token from @BotFather';
+    $('c-discord').checked = c.alerts.discord.enabled;
+    $('dc-mask').textContent = s.discordWebhookUrl ? 'Webhook saved' : 'Channel webhook';
+    $('c-fbEnabled').checked = c.fallback.enabled;
+    $('c-onNetworkError').checked = c.fallback.onNetworkError;
+    $('fb-desc').textContent = c.fallback.chain.length ? 'Chain: ' + c.fallback.chain.map((p) => p.name + ' (' + p.type + ')').join(' → ') : 'No providers yet. Add one in Advanced below.';
+    $('c-dgEnabled').checked = c.downgrade.enabled;
+    $('c-dgThreshold').value = c.downgrade.thresholdPercent;
+    $('dg-val').textContent = c.downgrade.thresholdPercent + '%';
+    const ex = Object.entries(c.downgrade.map)[0];
+    $('dg-desc').textContent = ex ? ex[0] + ' → ' + ex[1] : 'Add a model pair in Advanced (downgrade.map).';
+    $('raw').value = JSON.stringify(c, null, 2);
+    ['s-ollamaApiKey', 's-telegramBotToken', 's-discordWebhookUrl'].forEach((id) => ($(id).value = ''));
+  }
+  $('c-dgThreshold').addEventListener('input', (e) => ($('dg-val').textContent = e.target.value + '%'));
+
+  async function save() {
+    const btn = $('btn-save');
+    btn.disabled = true;
+    try {
+      const thresholds = $('c-thresholds').value.split(/[,\s]+/).filter(Boolean).map(Number);
+      const patch = {
+        ollama: { usageScope: $('c-usageScope').value, accountLabel: $('c-accountLabel').value || 'personal', pollIntervalSec: Number($('c-pollIntervalSec').value) },
+        alerts: {
+          thresholds, onReset: $('c-onReset').checked, onFallback: $('c-onFallback').checked, desktop: $('c-desktop').checked,
+          telegram: { enabled: $('c-telegram').checked, chatId: $('c-chatId').value.trim() }, discord: { enabled: $('c-discord').checked },
+        },
+        fallback: { enabled: $('c-fbEnabled').checked, onNetworkError: $('c-onNetworkError').checked },
+        downgrade: { enabled: $('c-dgEnabled').checked, thresholdPercent: Number($('c-dgThreshold').value) },
+      };
+      const secrets = {};
+      for (const k of ['ollamaApiKey', 'telegramBotToken', 'discordWebhookUrl']) { const v = $('s-' + k).value.trim(); if (v) secrets[k] = v; }
+      if (Object.keys(secrets).length) await api('secrets', { method: 'PUT', body: JSON.stringify(secrets) });
+      await api('config', { method: 'PUT', body: JSON.stringify(patch) });
+      await loadConfig();
+      toast('Saved');
+    } catch (err) {
+      toast((err.body && err.body.problems && err.body.problems[0]) || err.message);
+    } finally { btn.disabled = false; }
+  }
+  $('btn-save').onclick = save;
+  $('btn-raw').onclick = async () => {
+    let parsed;
+    try { parsed = JSON.parse($('raw').value); } catch (e) { toast('That is not valid JSON'); return; }
+    try { await api('config', { method: 'PUT', body: JSON.stringify(parsed) }); await loadConfig(); toast('Configuration saved'); }
+    catch (err) { toast((err.body && err.body.problems && err.body.problems[0]) || err.message); }
+  };
+  const testAlert = async () => {
+    try {
+      const r = await api('alerts/test', { method: 'POST' });
+      if (!r.results.length) toast('No alert channels are enabled');
+      else toast(r.results.map((x) => (x.ok ? '✓ ' : '✕ ') + x.channel).join('   '));
+    } catch (e) { toast(e.message); }
+  };
+  $('btn-test').onclick = testAlert;
+  $('btn-test-2').onclick = testAlert;
+  $('btn-refresh').onclick = async () => { try { status = await api('usage/refresh', { method: 'POST' }); renderAll(); toast('Usage refreshed'); } catch (e) { toast(e.message); } };
+
+  // ---------------------------------------------------- data flow
+  function renderAll() { renderPill(); renderGreeting(); renderRings(); renderHeroSide(); renderTiles(); renderAlerts(); if (status) $('ver').textContent = 'v' + status.version; }
+  async function loadStats() {
+    try { stats = await api('stats?days=14'); renderTiles(); renderChart(); renderGroups('projects', stats.projects); renderGroups('models', stats.models); } catch {}
+  }
+  let statsTimer;
+  const scheduleStats = () => { clearTimeout(statsTimer); statsTimer = setTimeout(loadStats, 800); };
+
+  function connect() {
+    const es = new EventSource('/api/guard/events');
+    es.addEventListener('status', (ev) => { status = JSON.parse(ev.data); renderAll(); });
+    es.addEventListener('request', (ev) => {
+      const e = JSON.parse(ev.data);
+      logs.unshift(e); logs = logs.slice(0, 300);
+      const body = $('log-body');
+      body.insertAdjacentHTML('afterbegin', logRow(e, true));
+      while (body.children.length > 300) body.lastElementChild.remove();
+      $('log-empty').style.display = 'none';
+      applyFilter();
+      scheduleStats();
+    });
+    es.addEventListener('alert', (ev) => { const { alert } = JSON.parse(ev.data); toast(alert.title); });
+    es.onerror = () => { status = null; renderPill(); };
+    es.onopen = () => { loadStats(); };
+  }
+
+  async function boot() {
+    show((location.hash || '#overview').slice(1));
+    try { status = await api('status'); } catch {}
+    renderAll();
+    try { logs = await api('logs?limit=300'); renderLogs(); } catch {}
+    try { configDoc = await api('config'); } catch {}
+    await loadStats();
+    connect();
+    window.addEventListener('resize', () => renderChart());
+    setInterval(() => renderGreeting(), 60000);
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
