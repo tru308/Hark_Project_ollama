@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "server": { "host": "127.0.0.1", "port": 4141, "requireToken": false, "localCountTokens": true },
+  "ollama": {
+    "baseUrl": "https://ollama.com",
+    "accountLabel": "personal",
+    "usageScope": "self",
+    "pollIntervalSec": 60,
+    "requestTimeoutSec": 600
+  },
+  "models": {
+    "map": {
+      "claude-*": "glm-5.3",
+      "claude-*haiku*": "glm-5.3-flash"
+    }
+  },
+  "fallback": {
+    "enabled": true,
+    "triggerStatuses": [429, 402],
+    "onNetworkError": false,
+    "cooldownSec": 300,
+    "chain": [
+      { "name": "local", "type": "ollama-local", "defaultModel": "qwen3-coder" },
+      { "name": "openrouter", "type": "openrouter", "apiKeyEnv": "OPENROUTER_API_KEY", "defaultModel": "anthropic/claude-sonnet-4.5" }
+    ]
+  },
+  "downgrade": { "enabled": true, "thresholdPercent": 90, "map": { "glm-5.3": "glm-5.3-flash" } },
+  "alerts": {
+    "thresholds": [70, 90, 100],
+    "onReset": true,
+    "onFallback": true,
+    "desktop": true,
+    "telegram": { "enabled": false, "chatId": "" },
+    "discord": { "enabled": false }
+  },
+  "pricing": {
+    "openrouter::anthropic/*": { "inputPerMTok": 3, "outputPerMTok": 15 }
+  },
+  "logging": { "retentionDays": 30 },
+  "secretStore": "file"
+}

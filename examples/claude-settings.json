@@ -1,0 +1,12 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:4141",
+    "ANTHROPIC_AUTH_TOKEN": "ollama-guard",
+    "ANTHROPIC_API_KEY": ""
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "ollama-guard statusline",
+    "padding": 0
+  }
+}
