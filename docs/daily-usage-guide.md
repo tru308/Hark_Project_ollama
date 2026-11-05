@@ -5,7 +5,8 @@ A practical routine for coding with Claude Code on Ollama Cloud, with Ollama Gua
 ## Once: set it up (5 minutes)
 
 ```bash
-npm install -g ollama-guard
+git clone https://github.com/tru308/Hark_Project_ollama.git && cd Hark_Project_ollama
+npm install && npm run build && npm link
 ollama-guard init                 # key, model, fallback, alerts, status line
 ollama-guard doctor               # everything green?
 ```

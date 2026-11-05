@@ -5,7 +5,7 @@
 **A calm, local companion for Claude Code on Ollama Cloud.**
 See your usage live, get a heads-up before you hit a limit, and keep coding when you do.
 
-[![CI](https://github.com/your-username/ollama-guard/actions/workflows/ci.yml/badge.svg)](./.github/workflows/ci.yml)
+[![CI](https://github.com/tru308/Hark_Project_ollama/actions/workflows/ci.yml/badge.svg)](https://github.com/tru308/Hark_Project_ollama/actions/workflows/ci.yml)
 ![Node](https://img.shields.io/badge/node-%E2%89%A520.10-339933)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 ![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)
@@ -81,8 +81,12 @@ You need **Node.js 20.10+** ([nodejs.org](https://nodejs.org)), **Claude Code**,
 ### Windows (PowerShell)
 
 ```powershell
-# 1. Install
-npm install -g ollama-guard
+# 1. Install (clone, build, and put `ollama-guard` on your PATH)
+git clone https://github.com/tru308/Hark_Project_ollama.git
+cd Hark_Project_ollama
+npm install
+npm run build
+npm link
 
 # 2. Set up (paste your key when asked; takes about a minute)
 ollama-guard init
@@ -106,7 +110,9 @@ To make step 4 permanent for every new window, either add the `env` block to
 ### macOS / Linux (bash or zsh)
 
 ```bash
-npm install -g ollama-guard
+git clone https://github.com/tru308/Hark_Project_ollama.git
+cd Hark_Project_ollama
+npm install && npm run build && npm link   # use sudo npm link if your npm needs it
 ollama-guard init
 ollama-guard start --detach --open
 
@@ -117,7 +123,8 @@ claude
 ollama-guard env --shell zsh >> ~/.zshrc     # or: --shell bash >> ~/.bashrc
 ```
 
-> Prefer not to install globally? `npx ollama-guard init` and `npx ollama-guard start` work too.
+> Prefer not to link globally? From the repo folder, `node dist/cli.js init` and `node dist/cli.js start` work too.
+> To update later: `git pull && npm install && npm run build`.
 > From a clone: `npm install && npm run build && npm link`.
 
 Check everything with:
@@ -343,7 +350,7 @@ Yes. Run Guard and Claude Code on the same side (both in WSL, or both on Windows
 ## Development
 
 ```bash
-git clone <your fork> && cd ollama-guard
+git clone https://github.com/tru308/Hark_Project_ollama.git && cd Hark_Project_ollama
 npm install
 npm run build && npm test     # vitest: proxy routing, fallback, alerts, usage parsing
 npm run lint && npm run typecheck

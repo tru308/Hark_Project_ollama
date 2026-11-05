@@ -56,5 +56,13 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.1.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tru308/Hark_Project_ollama.git"
+  },
+  "homepage": "https://github.com/tru308/Hark_Project_ollama#readme",
+  "bugs": {
+    "url": "https://github.com/tru308/Hark_Project_ollama/issues"
   }
 }
