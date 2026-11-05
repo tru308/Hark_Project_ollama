@@ -39,7 +39,15 @@ export function primaryTarget(requestedModel: string, cfg: GuardConfig, secrets:
   }
   const auth: Record<string, string> = {};
   if (secrets.ollamaApiKey) auth.authorization = `Bearer ${secrets.ollamaApiKey}`;
-  return { name: PRIMARY_NAME, kind: 'primary', baseUrl: cfg.ollama.baseUrl, auth, model, downgraded };
+  return { name: PRIMARY_NAME, kind: 'primary', baseUrl: cfg.ollama.baseUrl, auth, model: toCloudApiName(model), downgraded };
+}
+
+/**
+ * The Ollama app names cloud models `gemma4:31b-cloud` or `glm-5.3:cloud`, but the
+ * ollama.com API expects `gemma4:31b` / `glm-5.3`. Accept both spellings.
+ */
+export function toCloudApiName(model: string): string {
+  return model.replace(/:cloud$/i, '').replace(/-cloud$/i, '');
 }
 
 export function fallbackTargets(requestedModel: string, cfg: GuardConfig, secrets: Secrets): Target[] {

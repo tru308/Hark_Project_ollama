@@ -163,3 +163,12 @@ describe('helpers', () => {
     expect(parseArgs(['env', '--shell=powershell']).flags.shell).toBe('powershell');
   });
 });
+
+import { toCloudApiName } from '../src/proxy/plan.js';
+describe('toCloudApiName', () => {
+  it('strips app-style cloud suffixes', () => {
+    expect(toCloudApiName('gemma4:31b-cloud')).toBe('gemma4:31b');
+    expect(toCloudApiName('glm-5.3:cloud')).toBe('glm-5.3');
+    expect(toCloudApiName('gpt-oss:20b')).toBe('gpt-oss:20b');
+  });
+});
